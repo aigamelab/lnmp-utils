@@ -34,7 +34,13 @@ os_install_check() {
 pkg_install() {
 	for pkg in "$@"; do
 		if ! dpkg -s "${pkg}" &>/dev/null; then
-			apt-get install -y -qq "${pkg}"
+			echo -n "  Installing ${pkg}... "
+			if apt-get install -y -qq "${pkg}" 2>/dev/null; then
+				echo "OK"
+			else
+				echo "FAILED"
+				echo "  [WARN] Package '${pkg}' not found in repos, continuing"
+			fi
 		fi
 	done
 }

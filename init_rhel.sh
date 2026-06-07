@@ -65,13 +65,24 @@ enabled=0
 REPOEOF
 	fi
 
-	# Enable PowerTools (RHEL 8) / CRB (RHEL 9+) for build dependencies like pcre-devel.
-	# Uses sed directly on repo files to avoid dependency on dnf-plugins-core
-	# (which may itself live in the disabled repo — chicken-and-egg).
+	# Enable PowerTools (RHEL 8) / CRB (RHEL 9+) / devel (Rocky 10+)
+	# for build dependencies. Uses sed directly on repo files to avoid
+	# dependency on dnf-plugins-core (chicken-and-egg with disabled repos).
+	# Section-aware: only toggles enabled=0 → enabled=1 within the matching
+	# [section] block, not the entire file.
 	for _repo in /etc/yum.repos.d/*.repo; do
-		if [ -f "${_repo}" ] && grep -qiE 'powertools|crb|codeready' "${_repo}" 2>/dev/null; then
-			sed -i 's/enabled=0/enabled=1/g' "${_repo}"
+		if [ ! -f "${_repo}" ]; then
+			continue
 		fi
+		# Find section headers matching powertools/crb/codeready/devel and enable
+		# only within that section (until the next section or EOF).
+		grep -niE '^\[(powertools|crb|codeready|devel)\]' "${_repo}" 2>/dev/null | while IFS=: read -r _lineno _section; do
+			# Extract just the section name for the range pattern
+			_section_name="${_section#[}"
+			_section_name="${_section_name%]}"
+			# Use sed range: from matching line to next '[' line (or EOF), toggle enabled=0
+			sed -i "${_lineno},/^\[/ { s/^enabled=0/enabled=1/g }" "${_repo}"
+		done
 	done
 
 	# Refresh package metadata before any pkg_install calls
@@ -89,8 +100,14 @@ pkg_install() {
 	local installed_packages
 	installed_packages=$(dnf list installed)
 	for pkg in "$@"; do
-		if ! echo "${installed_packages}" | grep -q "^${pkg}"; then
-			dnf -y -q install "${pkg}"
+		if ! echo "${installed_packages}" | grep -q "^${pkg}\."; then
+			echo -n "  Installing ${pkg}... "
+			if dnf -y -q install "${pkg}" 2>/dev/null; then
+				echo "OK"
+			else
+				echo "FAILED"
+				echo "  [WARN] Package '${pkg}' not found in repos, continuing"
+			fi
 		fi
 	done
 }
