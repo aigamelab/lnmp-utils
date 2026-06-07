@@ -1,6 +1,7 @@
 FROM quay.io/centos/centos:stream9
 
-RUN dnf install -y --setopt=install_weak_deps=False \
+# Minimal build environment; component install scripts handle their own deps
+RUN dnf install -y --setopt=install_weak_deps=False --allowerasing \
     procps-ng \
     curl \
     git \
@@ -12,6 +13,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     tar \
     gzip \
     bzip2 \
+    cmake \
     && dnf clean all
 
 WORKDIR /opt/lnmp-utils
