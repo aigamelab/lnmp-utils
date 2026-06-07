@@ -1,0 +1,44 @@
+services:
+  rockylinux:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.rockylinux
+    image: lnmp-test-rockylinux:latest
+    privileged: true
+    volumes:
+      - ..:/opt/lnmp-utils
+      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+    command: -b -c php mariadb openresty redis memcache
+
+  centos:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.centos
+    image: lnmp-test-centos:latest
+    privileged: true
+    volumes:
+      - ..:/opt/lnmp-utils
+      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+    command: -b -c php mariadb openresty redis memcache
+
+  ubuntu:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ubuntu
+    image: lnmp-test-ubuntu:latest
+    privileged: true
+    volumes:
+      - ..:/opt/lnmp-utils
+      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+    command: -b -c php mariadb openresty redis memcache
+
+  debian:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.debian
+    image: lnmp-test-debian:latest
+    privileged: true
+    volumes:
+      - ..:/opt/lnmp-utils
+      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+    command: -b -c php mariadb openresty redis memcache
