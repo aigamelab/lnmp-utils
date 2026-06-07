@@ -1,0 +1,28 @@
+FROM rockylinux/rockylinux:10
+
+# Install minimal dependencies for testing
+RUN dnf install -y --setopt=install_weak_deps=False \
+    procps-ng \
+    curl \
+    git \
+    gcc \
+    gcc-c++ \
+    make \
+    wget \
+    perl \
+    tar \
+    gzip \
+    bzip2 \
+    && dnf clean all
+
+WORKDIR /opt/lnmp-utils
+
+# Copy project files
+COPY install.sh func_init.sh func_install.sh init_rhel.sh init_debian.sh ./
+COPY install ./
+
+# Entry script to run tests
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

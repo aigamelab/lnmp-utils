@@ -103,10 +103,10 @@ check_dir "${DATA_DIR}"
 CPU_NUM=$(grep -c -e "model name" -e "processor" /proc/cpuinfo)
 
 # Auto-select source mirror based on network speed (GitHub vs Gitee)
-GIT_URL_GITHUB="https://github.com/aigameism/lnmp-utils-packages.git"
-SOURCE_URL_GITHUB="https://raw.githubusercontent.com/aigameism/lnmp-utils-packages/master/"
-GIT_URL_GITEE="https://gitee.com/aigameism/lnmp-utils-packages.git"
-SOURCE_URL_GITEE="https://raw.giteeusercontent.com/aigameism/lnmp-utils-packages/raw/master/"
+GIT_URL_GITHUB="https://github.com/aigameism/lnmp-utils-components.git"
+SOURCE_URL_GITHUB="https://raw.githubusercontent.com/aigameism/lnmp-utils-components/master/"
+GIT_URL_GITEE="https://gitee.com/aigameism/lnmp-utils-components.git"
+SOURCE_URL_GITEE="https://raw.giteeusercontent.com/aigameism/lnmp-utils-components/raw/master/"
 
 _github_time=$(curl -s --connect-timeout 3 -o /dev/null -w "%{time_total}" \
     "https://raw.githubusercontent.com" 2>/dev/null)
@@ -133,7 +133,7 @@ else
 fi
 
 BUILD_DIR="${PARENT_DIR}/lnmp-utils-build"
-GIT_DIR="${CURRENT_DIR}/lnmp-utils-packages"
+GIT_DIR="${CURRENT_DIR}/lnmp-utils-components"
 
 
 # ---- Package and temp directory setup ----
@@ -194,7 +194,7 @@ COM_NAME=""
 COM_SOURCE_FILE=""
 COM_INSTALL_DIR=""
 COM_INSTALL_SCRIPT=""
-COM_3RD_DIR=""
+COM_PACKAGE_DIR=""
 COM_CONF_DIR=""
 COM_DATA_CONF_DIR=""
 COM_DATA_DB_DIR=""
