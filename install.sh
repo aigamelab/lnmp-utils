@@ -103,33 +103,40 @@ check_dir "${DATA_DIR}"
 CPU_NUM=$(grep -c -e "model name" -e "processor" /proc/cpuinfo)
 
 # Auto-select source mirror based on network speed (GitHub vs Gitee)
+# Set MIRROR=github or MIRROR=gitee to force a specific mirror.
 GIT_URL_GITHUB="https://github.com/aigameism/lnmp-utils-packages.git"
 SOURCE_URL_GITHUB="https://raw.githubusercontent.com/aigameism/lnmp-utils-packages/master/"
 GIT_URL_GITEE="https://gitee.com/aigameism/lnmp-utils-packages.git"
 SOURCE_URL_GITEE="https://raw.giteeusercontent.com/aigameism/lnmp-utils-packages/raw/master/"
 
-_github_time=$(curl -s --connect-timeout 3 -o /dev/null -w "%{time_total}" \
-    "https://raw.githubusercontent.com" 2>/dev/null)
-_gitee_time=$(curl -s --connect-timeout 3 -o /dev/null -w "%{time_total}" \
-    "https://raw.giteeusercontent.com" 2>/dev/null)
+if [ "${MIRROR:-}" = "github" ]; then
+    GIT_URL="${GIT_URL_GITHUB}"
+    SOURCE_URL="${SOURCE_URL_GITHUB}"
+    echo "Using GitHub mirror (forced)"
+elif [ "${MIRROR:-}" = "gitee" ]; then
+    GIT_URL="${GIT_URL_GITEE}"
+    SOURCE_URL="${SOURCE_URL_GITEE}"
+    echo "Using Gitee mirror (forced)"
+else
+    _github_time=$(curl -s --connect-timeout 3 -o /dev/null -w "%{time_total}" \
+        "https://raw.githubusercontent.com" 2>/dev/null)
+    _gitee_time=$(curl -s --connect-timeout 3 -o /dev/null -w "%{time_total}" \
+        "https://raw.giteeusercontent.com" 2>/dev/null)
 
-# Use the faster mirror; fall back to GitHub if both unreachable (default)
-if [ -n "${_gitee_time}" ] && [ -n "${_github_time}" ]; then
-    if [ "$(awk "BEGIN{print (${_gitee_time} < ${_github_time}) ? 1 : 0}")" = "1" ]; then
+    # Use the faster mirror; prefer GitHub for anonymous git clone
+    if [ -n "${_github_time}" ]; then
+        GIT_URL="${GIT_URL_GITHUB}"
+        SOURCE_URL="${SOURCE_URL_GITHUB}"
+        echo "Using GitHub mirror (default)"
+    elif [ -n "${_gitee_time}" ]; then
         GIT_URL="${GIT_URL_GITEE}"
         SOURCE_URL="${SOURCE_URL_GITEE}"
-        echo "Using Gitee mirror (faster network)"
+        echo "Using Gitee mirror (GitHub unreachable)"
     else
         GIT_URL="${GIT_URL_GITHUB}"
         SOURCE_URL="${SOURCE_URL_GITHUB}"
+        echo "Using GitHub mirror (all unreachable, trying anyway)"
     fi
-elif [ -n "${_gitee_time}" ]; then
-    GIT_URL="${GIT_URL_GITEE}"
-    SOURCE_URL="${SOURCE_URL_GITEE}"
-    echo "Using Gitee mirror (GitHub unreachable)"
-else
-    GIT_URL="${GIT_URL_GITHUB}"
-    SOURCE_URL="${SOURCE_URL_GITHUB}"
 fi
 
 BUILD_DIR="${PARENT_DIR}/lnmp-utils-build"
