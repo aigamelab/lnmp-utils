@@ -116,19 +116,19 @@ _gitee_time=$(curl -s --connect-timeout 3 -o /dev/null -w "%{time_total}" \
 # Use the faster mirror; fall back to GitHub if both unreachable (default)
 if [ -n "${_gitee_time}" ] && [ -n "${_github_time}" ]; then
     if [ "$(awk "BEGIN{print (${_gitee_time} < ${_github_time}) ? 1 : 0}")" = "1" ]; then
-        GIT_URL="${SOURCE_GIT_GITEE}"
+        GIT_URL="${GIT_URL_GITEE}"
         SOURCE_URL="${SOURCE_URL_GITEE}"
         echo "Using Gitee mirror (faster network)"
     else
-        GIT_URL="${SOURCE_GIT_GITHUB}"
+        GIT_URL="${GIT_URL_GITHUB}"
         SOURCE_URL="${SOURCE_URL_GITHUB}"
     fi
 elif [ -n "${_gitee_time}" ]; then
-    GIT_URL="${SOURCE_GIT_GITEE}"
+    GIT_URL="${GIT_URL_GITEE}"
     SOURCE_URL="${SOURCE_URL_GITEE}"
     echo "Using Gitee mirror (GitHub unreachable)"
 else
-    GIT_URL="${SOURCE_GIT_GITHUB}"
+    GIT_URL="${GIT_URL_GITHUB}"
     SOURCE_URL="${SOURCE_URL_GITHUB}"
 fi
 
@@ -158,10 +158,10 @@ if [[ "${INSTALL_IS_BUILD}" == "1" ]]; then
             mkdir -p "$GIT_DIR"
         fi
         if [ ! -f "$GIT_DIR/pkg.cnf" ] || [ ! -d "$GIT_DIR/pkg" ]; then
-            git clone "$SOURCE_GIT_URL"
+            cd "$GIT_DIR" && git clone "$GIT_URL" .
         fi
         if [ ! -f "$GIT_DIR/pkg.cnf" ] || [ ! -d "$GIT_DIR/pkg" ]; then
-            echo "git clone failed: $SOURCE_GIT_URL"
+            echo "git clone failed: $GIT_URL"
             exit
         fi
     fi
