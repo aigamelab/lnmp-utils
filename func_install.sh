@@ -144,9 +144,26 @@ com_install() {
 		cd "${CURRENT_DIR}" || return
 		if [ -f "${COM_INSTALL_SCRIPT}" ]; then
 			echo "${COM_INSTALL_SCRIPT}"
+			# If libsodium not available, remove --with-sodium from install script
+			if ! pkg-config --exists libsodium 2>/dev/null; then
+				sed -i 's/--with-sodium[[:space:]]*\\//g' "${COM_INSTALL_SCRIPT}" 2>/dev/null || true
+			fi
+			# On Debian/Ubuntu, iconv is built into glibc — skip libiconv and -liconv
+			if [ "${OS_SCRIPT_NAME}" = "debian" ]; then
+				sed -i 's/if \[ ! -f \/usr\/local\/bin\/iconv \]/if false/' "${COM_INSTALL_SCRIPT}" 2>/dev/null || true
+				sed -i 's/export LDFLAGS="$LDFLAGS -liconv"//g' "${COM_INSTALL_SCRIPT}" 2>/dev/null || true
+			fi
 			source "${COM_INSTALL_SCRIPT}"
 		elif [ -f "${COM_INSTALL_DEFAULT_SCRIPT}" ]; then
 			echo "${COM_INSTALL_DEFAULT_SCRIPT}"
+			if ! pkg-config --exists libsodium 2>/dev/null; then
+				sed -i 's/--with-sodium[[:space:]]*\\//g' "${COM_INSTALL_DEFAULT_SCRIPT}" 2>/dev/null || true
+			fi
+			# On Debian/Ubuntu, iconv is built into glibc — skip libiconv and -liconv
+			if [ "${OS_SCRIPT_NAME}" = "debian" ]; then
+				sed -i 's/if \[ ! -f \/usr\/local\/bin\/iconv \]/if false/' "${COM_INSTALL_DEFAULT_SCRIPT}" 2>/dev/null || true
+				sed -i 's/export LDFLAGS="$LDFLAGS -liconv"//g' "${COM_INSTALL_DEFAULT_SCRIPT}" 2>/dev/null || true
+			fi
 			source "${COM_INSTALL_DEFAULT_SCRIPT}"
 		fi
 		sleep 2

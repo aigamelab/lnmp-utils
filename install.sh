@@ -11,7 +11,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 # Script directory and its parent
-CURRENT_DIR=$(cd "$(dirname "$0")" && pwd)"/"
+CURRENT_DIR=$(cd "$(dirname "$0")" && pwd)
 PARENT_DIR=$(dirname "$CURRENT_DIR")
 
 # Default install and data root directories (override in install.conf)
@@ -165,11 +165,11 @@ if [[ "${INSTALL_IS_BUILD}" == "1" ]]; then
             mkdir -p "$GIT_DIR"
         fi
         if [ ! -f "$GIT_DIR/pkg.cnf" ] || [ ! -d "$GIT_DIR/pkg" ]; then
-            cd "$GIT_DIR" && git clone "$GIT_URL" .
+            cd "$GIT_DIR" && git clone "$GIT_URL" . 2>/dev/null || true
         fi
         if [ ! -f "$GIT_DIR/pkg.cnf" ] || [ ! -d "$GIT_DIR/pkg" ]; then
-            echo "git clone failed: $GIT_URL"
-            exit
+            echo "Warning: git clone failed. Ensuring packages are available..."
+            exit 1
         fi
     fi
 fi
