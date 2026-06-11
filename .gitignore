@@ -6,4 +6,5 @@ bak
 .pydevproject
 build
 tmp/*
-pkg/*
+pkg/*.claude
+CLAUDE.md
