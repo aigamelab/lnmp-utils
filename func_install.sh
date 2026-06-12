@@ -104,6 +104,25 @@ com_install_init() {
 	COM_DATA_CACHE_DIR="${DATA_CACHE_DIR}${COM_NAME}/"
 }
 
+# Export component state globals for install scripts to reference
+_com_export_state() {
+	_com_state_name="$1"
+	_com_state_dir="${SOURCE_COMPONENT_DIR}${_com_state_name}/"
+	COM_NAME="${_com_state_name}"
+	COM_DIR="${_com_state_dir}"
+	COM_3RD_DIR="${_com_state_dir}3rd/"
+	COM_SOURCE_FILE=""
+	COM_CONF_DIR="${_com_state_dir}conf/"
+	COM_INSTALL_SCRIPT="${_com_state_dir}install_${OS_PLATFORM}.sh"
+	COM_INSTALL_DEFAULT_SCRIPT="${_com_state_dir}install.sh"
+	COM_INSTALL_DIR="${INSTALL_DIR}${_com_state_name}/"
+	COM_DATA_CONF_DIR="${DATA_CONF_DIR}${_com_state_name}/"
+	COM_DATA_DB_DIR="${DATA_DB_DIR}${_com_state_name}/"
+	COM_DATA_SCRIPT_DIR="${DATA_SCRIPT_DIR}${_com_state_name}/"
+	COM_DATA_LOG_DIR="${DATA_LOG_DIR}${_com_state_name}/"
+	COM_DATA_CACHE_DIR="${DATA_CACHE_DIR}${_com_state_name}/"
+}
+
 # Clear all component state variables
 com_install_clear() {
 	COM_NAME=""
@@ -126,49 +145,56 @@ com_install() {
 		return
 	fi
 
-	local com
 	for com in $1; do
-		com_install_init "${com}"
-		if [ ! -d "${COM_DIR}" ]; then
-			com_source_get "${COM_NAME}" "${SOURCE_COMPONENT_DIR}"
-			if [ ! -d "${COM_DIR}" ]; then
+		_com_install_dir="${SOURCE_COMPONENT_DIR}${com}/"
+		if [ ! -d "${_com_install_dir}" ]; then
+			com_source_get "${com}" "${SOURCE_COMPONENT_DIR}"
+			if [ ! -d "${_com_install_dir}" ]; then
 				error "Component: ${com} failed to download!"
 			fi
 		fi
 
-		if [ ! -f "${COM_INSTALL_SCRIPT}" ] && [ ! -f "${COM_INSTALL_DEFAULT_SCRIPT}" ]; then
+		_com_install_script="${_com_install_dir}install_${OS_PLATFORM}.sh"
+		_com_install_default_script="${_com_install_dir}install.sh"
+		if [ ! -f "${_com_install_script}" ] && [ ! -f "${_com_install_default_script}" ]; then
 			error "Failed to install component ${com}: no install script found!"
+		fi
+
+		# Export globals for component install scripts to reference
+		_com_export_state "${com}"
+
+		# Skip if already installed (e.g. re-run after partial success)
+		if [ -d "${COM_INSTALL_DIR}" ]; then
+			echo "Component ${com} is already installed, skipping."
+			continue
 		fi
 
 		echo "Component ${com} installation started."
 		cd "${CURRENT_DIR}" || return
-		if [ -f "${COM_INSTALL_SCRIPT}" ]; then
-			echo "${COM_INSTALL_SCRIPT}"
-			# If libsodium not available, remove --with-sodium from install script
-			if ! pkg-config --exists libsodium 2>/dev/null; then
-				sed -i 's/--with-sodium[[:space:]]*\\//g' "${COM_INSTALL_SCRIPT}" 2>/dev/null || true
-			fi
-			# On Debian/Ubuntu, iconv is built into glibc — skip libiconv and -liconv
-			if [ "${OS_SCRIPT_NAME}" = "debian" ]; then
-				sed -i 's/if \[ ! -f \/usr\/local\/bin\/iconv \]/if false/' "${COM_INSTALL_SCRIPT}" 2>/dev/null || true
-				sed -i 's/export LDFLAGS="$LDFLAGS -liconv"//g' "${COM_INSTALL_SCRIPT}" 2>/dev/null || true
-			fi
-			source "${COM_INSTALL_SCRIPT}"
-		elif [ -f "${COM_INSTALL_DEFAULT_SCRIPT}" ]; then
-			echo "${COM_INSTALL_DEFAULT_SCRIPT}"
-			if ! pkg-config --exists libsodium 2>/dev/null; then
-				sed -i 's/--with-sodium[[:space:]]*\\//g' "${COM_INSTALL_DEFAULT_SCRIPT}" 2>/dev/null || true
-			fi
-			# On Debian/Ubuntu, iconv is built into glibc — skip libiconv and -liconv
-			if [ "${OS_SCRIPT_NAME}" = "debian" ]; then
-				sed -i 's/if \[ ! -f \/usr\/local\/bin\/iconv \]/if false/' "${COM_INSTALL_DEFAULT_SCRIPT}" 2>/dev/null || true
-				sed -i 's/export LDFLAGS="$LDFLAGS -liconv"//g' "${COM_INSTALL_DEFAULT_SCRIPT}" 2>/dev/null || true
-			fi
-			source "${COM_INSTALL_DEFAULT_SCRIPT}"
+
+		if [ -f "${_com_install_script}" ]; then
+			_com_install_install_script="${_com_install_script}"
+		else
+			_com_install_install_script="${_com_install_default_script}"
 		fi
+		echo "${_com_install_install_script}"
+
+		_com_install_tmp_script="${TMP_DIR}/install_${com}.sh"
+		cp "${_com_install_install_script}" "${_com_install_tmp_script}"
+
+		if ! pkg-config --exists libsodium 2>/dev/null; then
+			sed -i '/--with-sodium[[:space:]]*\\/d' "${_com_install_tmp_script}" 2>/dev/null || true
+		fi
+		if [ "${OS_SCRIPT_NAME}" = "debian" ]; then
+			sed -i 's/if \[ ! -f \/usr\/local\/bin\/iconv \]/if false/' "${_com_install_tmp_script}" 2>/dev/null || true
+			sed -i 's/export LDFLAGS="$LDFLAGS -liconv"//g' "${_com_install_tmp_script}" 2>/dev/null || true
+		fi
+		# Run component install in a subshell to avoid bash 5.2 pop_var_context bug
+		# The component script reads COM_* globals but does not need to modify them
+		(source "${_com_install_tmp_script}")
+		rm -f "${_com_install_tmp_script}"
 		sleep 2
 		echo "Component ${com} installation stopped."
-		com_install_clear
 	done
 }
 
@@ -180,7 +206,6 @@ com_unbz2()   { tar jxvf "$1" -C "${TMP_COMPONENT_DIR}" >/dev/null; }
 
 # Initialize a component source file and confirm overwrite if already installed
 com_init() {
-	local is_cover=""
 	COM_SOURCE_FILE="${COM_3RD_DIR}${1}"
 
 	if [ ! -f "${COM_SOURCE_FILE}" ]; then
@@ -189,8 +214,8 @@ com_init() {
 
 	if [ -d "${COM_INSTALL_DIR}" ]; then
 		echo -n "Component ${COM_NAME} is already installed. Overwrite? (y/n): "
-		read -r is_cover
-		if [ "${is_cover}" != "y" ] && [ "${is_cover}" != "Y" ]; then
+		read -r _com_init_is_cover
+		if [ "${_com_init_is_cover}" != "y" ] && [ "${_com_init_is_cover}" != "Y" ]; then
 			error "Component ${COM_NAME}: installation cancelled."
 		fi
 	fi
@@ -246,10 +271,13 @@ com_install_test() {
 
 # Install dependencies on-demand (called from component install scripts)
 require() {
-	local com_current_name="${COM_NAME}"
-	com_install "$*"
-	if [ -n "${com_current_name}" ]; then
-		com_install_init "${com_current_name}"
+	if [ -n "${COM_NAME}" ]; then
+		_require_saved_name="${COM_NAME}"
+		com_install "$*"
+		_com_export_state "${_require_saved_name}"
+		unset _require_saved_name
+	else
+		com_install "$*"
 	fi
 }
 

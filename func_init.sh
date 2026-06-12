@@ -144,18 +144,16 @@ killport() {
 		return
 	fi
 
-	# Install runtime dependencies on first use (if not already present)
-	if ! command -v netstat &>/dev/null; then
-		pkg_install net-tools
-	fi
 	if ! command -v killall &>/dev/null; then
 		pkg_install psmisc
 	fi
 
-	local pn
-	pn=$(netstat -anp | grep ":${1}\s" | awk '{print $7}' | awk -F'/' '{print $2}' | awk -F':' '{print $1}')
-	if [ -n "${pn}" ]; then
-		killall -9 "${pn}"
+	_killport_pn=""
+	if command -v ss &>/dev/null; then
+		_killport_pn=$(ss -tlnp | grep ":${1}\s" | awk '{print $6}' | awk -F',' '{print $2}' | awk -F'=' '{print $2}')
+	fi
+	if [ -n "${_killport_pn}" ]; then
+		killall -9 "${_killport_pn}"
 	fi
 }
 
@@ -168,10 +166,10 @@ pkg_uninstall() {
 }
 
 # OS-specific package wrappers (no-op when called on wrong OS)
-rhel_pkg_install()   { [ "${OS_SCRIPT_NAME}" = "rhel"   ] || return; pkg_install "$@"; }
-rhel_pkg_uninstall() { [ "${OS_SCRIPT_NAME}" = "rhel"   ] || return; pkg_uninstall "$@"; }
-debian_pkg_install()   { [ "${OS_SCRIPT_NAME}" = "debian" ] || return; pkg_install "$@"; }
-debian_pkg_uninstall() { [ "${OS_SCRIPT_NAME}" = "debian" ] || return; pkg_uninstall "$@"; }
+rhel_pkg_install()   { [ "${OS_SCRIPT_NAME}" = "rhel"   ] || return 0; pkg_install "$@"; }
+rhel_pkg_uninstall() { [ "${OS_SCRIPT_NAME}" = "rhel"   ] || return 0; pkg_uninstall "$@"; }
+debian_pkg_install()   { [ "${OS_SCRIPT_NAME}" = "debian" ] || return 0; pkg_install "$@"; }
+debian_pkg_uninstall() { [ "${OS_SCRIPT_NAME}" = "debian" ] || return 0; pkg_uninstall "$@"; }
 
 
 # One-time OS initialization (shared across all distros)
@@ -260,7 +258,7 @@ EOF
 
 	user_add www www
 	# Essential build tools (compile from source)
-	pkg_install make autoconf automake gcc cmake
+	pkg_install make autoconf automake gcc cmake pkg-config
 
 	# Download, archive and patch utilities
 	pkg_install wget curl unzip zip patch pigz
