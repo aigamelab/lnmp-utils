@@ -5,7 +5,8 @@
 # across Rockylinux 10, CentOS Stream 9, Ubuntu 24.04, Debian 12.
 #
 # SAFETY: Source mounts are READ-ONLY (:ro) — install never writes to /opt/lnmp-utils*.
-# Writable temp data uses system /tmp/ only. See shared/docs/Git规范.md.
+# Writable data mounts to /Volumes/data/docker-fs/<project>/ isolated from source.
+# Temp data uses system /tmp/ only. See shared docs: 安全规范.md.
 #
 # Usage:
 #   ./docker/test-runner.sh [distro]       # run one or all
@@ -26,6 +27,10 @@ BUILD_SRC="${BUILD_SRC:-$DEFAULT_BUILD_SRC}"
 # Test configuration
 COMPONENTS="php mariadb openresty redis memcache"
 INSTALL_ARGS="-b -c ${COMPONENTS}"
+
+# Data mount root — writable runtime data isolated from source
+DATA_MNT_ROOT="${DATA_MNT_ROOT:-/Volumes/data/docker-fs/lnmp-utils}"
+DATA_MNT_DIRS=("log" "conf" "www" "db" "pkg" "cache" "script")
 
 declare -A DISTROS=(
     ["rockylinux"]="rockylinux/rockylinux:10|Dockerfile.rockylinux"
@@ -63,9 +68,16 @@ run_test() {
         return 1
     fi
 
-    # Run install test — source mounts :ro, writable temp in /tmp/
+    # Run install test — source :ro, data in docker-fs, temp in /tmp/
     log "Running install on ${name}..."
     set +e
+
+    # Ensure data and temp directories exist
+    for _d in "${DATA_MNT_DIRS[@]}"; do
+        mkdir -p "${DATA_MNT_ROOT}/${_d}"
+    done
+    mkdir -p /tmp/aigm-test-pkg
+
     local mount_args=(
         -v "${PROJECT_DIR}:/opt/lnmp-utils:ro"
         -v /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
@@ -73,6 +85,9 @@ run_test() {
     if [ -d "${BUILD_SRC}" ]; then
         mount_args+=(-v "${BUILD_SRC}:/opt/lnmp-utils-build:ro")
     fi
+    for _d in "${DATA_MNT_DIRS[@]}"; do
+        mount_args+=(-v "${DATA_MNT_ROOT}/${_d}:/data/${_d}")
+    done
 
     docker run --rm --privileged \
         "${mount_args[@]}" \

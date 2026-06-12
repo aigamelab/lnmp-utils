@@ -133,11 +133,11 @@ else
 fi
 
 BUILD_DIR="${PARENT_DIR}/lnmp-utils-build"
-GIT_DIR="${CURRENT_DIR}/lnmp-utils-components"
+GIT_DIR="${DATA_DIR}lnmp-utils-components"
 
 
 # ---- Package and temp directory setup ----
-PKG_DIR="${CURRENT_DIR}pkg/"
+PKG_DIR="${DATA_DIR}pkg/"
 PKG_MODULE_DIR="${PKG_DIR}module/"
 PKG_COMPONENT_DIR="${PKG_DIR}component/"
 PKG_SOURCE_CONF=""

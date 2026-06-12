@@ -1,10 +1,24 @@
 # lnmp-utils multi-distro test — docker compose variant
 #
-# Mount rules (see shared/docs/Git规范.md):
+# Mount rules (see shared docs: 安全规范.md):
 #   - Source mounts are READ-ONLY (:ro) — install never writes to /opt/lnmp-utils*
-#   - Writable temp data mounts to system /tmp/ only
+#   - Writable data mounts to /Volumes/data/docker-fs/<project>/ isolated from source
+#   - Temp data mounts to system /tmp/ only
+#
+# Setup data directories (first run only):
+#   mkdir -p /Volumes/data/docker-fs/lnmp-utils/{log,conf,www,db,pkg,cache,script}
+#   mkdir -p /tmp/aigm-test-pkg
 #
 # Usage: docker compose up --abort-on-container-exit
+
+x-data-volumes: &data-volumes
+  - /Volumes/data/docker-fs/lnmp-utils/log:/data/log
+  - /Volumes/data/docker-fs/lnmp-utils/conf:/data/conf
+  - /Volumes/data/docker-fs/lnmp-utils/www:/data/www
+  - /Volumes/data/docker-fs/lnmp-utils/db:/data/db
+  - /Volumes/data/docker-fs/lnmp-utils/pkg:/data/pkg
+  - /Volumes/data/docker-fs/lnmp-utils/cache:/data/cache
+  - /Volumes/data/docker-fs/lnmp-utils/script:/data/script
 
 services:
   rockylinux:
@@ -17,6 +31,7 @@ services:
       - ..:/opt/lnmp-utils:ro
       - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+      <<: *data-volumes
     command: -b -c php mariadb openresty redis memcache
 
   centos:
@@ -29,6 +44,7 @@ services:
       - ..:/opt/lnmp-utils:ro
       - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+      <<: *data-volumes
     command: -b -c php mariadb openresty redis memcache
 
   ubuntu:
@@ -41,6 +57,7 @@ services:
       - ..:/opt/lnmp-utils:ro
       - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+      <<: *data-volumes
     command: -b -c php mariadb openresty redis memcache
 
   debian:
@@ -53,4 +70,5 @@ services:
       - ..:/opt/lnmp-utils:ro
       - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+      <<: *data-volumes
     command: -b -c php mariadb openresty redis memcache
