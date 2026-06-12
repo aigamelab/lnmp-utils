@@ -5,11 +5,6 @@
 PATH="/usr/local/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/sbin:${HOME}/bin"
 export PATH
 
-if [ "$(id -u)" != "0" ]; then
-    echo "This script must be run as root."
-    exit 1
-fi
-
 # Script directory and its parent
 CURRENT_DIR=$(cd "$(dirname "$0")" && pwd)
 PARENT_DIR=$(dirname "$CURRENT_DIR")
@@ -28,31 +23,50 @@ else
     exit 1
 fi
 
-# System detection & OS-specific init script
-detect_system
-
-# Source the OS-specific init script (init_rhel.sh / init_debian.sh)
-OS_SCRIPT_FILE="${CURRENT_DIR}/init_${OS_SCRIPT_NAME}.sh"
-if [ -f "${OS_SCRIPT_FILE}" ]; then
-    source "${OS_SCRIPT_FILE}"
-else
-    echo "Error: ${OS_ID} is not supported."
-    exit 1
-fi
-
-# Validate OS version and install required system packages
-os_install_check
-
 # Option defaults (must be initialized before the parsing loop)
 INSTALL_IS_QUIET="0"
 INSTALL_IS_BUILD="0"
 INSTALL_NO_CLEAR="0"
+INSTALL_IS_DOCKER="0"
+DOCKER_DISTRO=""
+
+# Check for --docker before OS detection (Docker path works on any platform)
+for _a in "$@"; do
+    case "${_a}" in
+        --docker)
+            INSTALL_IS_DOCKER="1"
+            ;;
+        --docker=*)
+            INSTALL_IS_DOCKER="1"
+            _distro="${_a#--docker=}"
+            case "${_distro}" in
+                debian|ubuntu|centos|rockylinux) DOCKER_DISTRO="${_distro}" ;;
+            esac
+            ;;
+    esac
+done
+
+# System detection & OS-specific init script (skip on Docker path)
+if [[ "${INSTALL_IS_DOCKER}" != "1" ]]; then
+    detect_system
+
+    # Source the OS-specific init script (init_rhel.sh / init_debian.sh)
+    OS_SCRIPT_FILE="${CURRENT_DIR}/init_${OS_SCRIPT_NAME}.sh"
+    if [ -f "${OS_SCRIPT_FILE}" ]; then
+        source "${OS_SCRIPT_FILE}"
+    else
+        echo "Error: ${OS_ID} is not supported."
+        exit 1
+    fi
+
+    # Validate OS version and install required system packages
+    os_install_check
+fi
 INSTALL_COMPONENTS=()
 INSTALL_MODULES=()
 INSTALL_OPTIONS=()
 
 # Command-line option parsing
-opt_init
 while [ -n "$1" ]; do
     case "${1}" in
         -q|--quiet)
@@ -62,21 +76,21 @@ while [ -n "$1" ]; do
         -c|--component)
             shift
             while [ -n "${1}" ] && [ "${1:0:1}" != "-" ]; do
-                INSTALL_COMPONENTS[${#INSTALL_COMPONENTS}]="$1"
+                INSTALL_COMPONENTS[${#INSTALL_COMPONENTS[@]}]="$1"
                 shift
             done
             ;;
         -m|--mode)
             shift
             while [ -n "${1}" ] && [ "${1:0:1}" != "-" ]; do
-                INSTALL_MODULES[${#INSTALL_MODULES}]="$1"
+                INSTALL_MODULES[${#INSTALL_MODULES[@]}]="$1"
                 shift
             done
             ;;
         -o)
             shift
             while [ -n "${1}" ] && [ "${1:0:1}" != "-" ]; do
-                INSTALL_OPTIONS[${#INSTALL_OPTIONS}]="$1"
+                INSTALL_OPTIONS[${#INSTALL_OPTIONS[@]}]="$1"
                 shift
             done
             ;;
@@ -88,6 +102,14 @@ while [ -n "$1" ]; do
             shift
             INSTALL_IS_BUILD="1"
             ;;
+        --docker)
+            shift
+            INSTALL_IS_DOCKER="1"
+            case "${1:-}" in
+                debian|ubuntu|centos|rockylinux)
+                    DOCKER_DISTRO="$1"; shift ;;
+            esac
+            ;;
         --no-clear)
             shift
             INSTALL_NO_CLEAR="1"
@@ -97,6 +119,90 @@ while [ -n "$1" ]; do
             ;;
     esac
 done
+
+# ---- Docker deployment path ----
+if [[ "${INSTALL_IS_DOCKER}" == "1" ]]; then
+    # Require root, docker group, or working docker CLI
+    if [ "$(id -u)" != "0" ] && ! groups 2>/dev/null | grep -q docker && ! docker info &>/dev/null; then
+        echo "This script must be run as root, be in the docker group,"
+        echo "or have a working Docker CLI for Docker deployment."
+        exit 1
+    fi
+
+    # Resolve distro
+    if [[ -z "${DOCKER_DISTRO:-}" ]]; then
+        echo "Select OS for Docker deployment:"
+        echo "  1) Debian 12"
+        echo "  2) Ubuntu 24.04"
+        echo "  3) CentOS Stream 9"
+        echo "  4) Rocky Linux 10"
+        read -p "Enter choice [1-4]: " _choice
+        case "${_choice}" in
+            1) DOCKER_DISTRO="debian" ;;
+            2) DOCKER_DISTRO="ubuntu" ;;
+            3) DOCKER_DISTRO="centos" ;;
+            4) DOCKER_DISTRO="rockylinux" ;;
+            *) echo "Invalid choice."; exit 1 ;;
+        esac
+    fi
+
+    source "${CURRENT_DIR}/docker/build-image.sh"
+    BUILD_DIR=$(find_build_repo "${CURRENT_DIR}")
+
+    if [[ "${INSTALL_IS_BUILD}" == "1" ]]; then
+        # -b: try loading pre-built tar, fall back to local build
+        _tar="${BUILD_DIR}/docker/lnmp-utils-${DOCKER_DISTRO}.tar"
+        if [[ -f "${_tar}" ]]; then
+            echo "Loading pre-built image: ${_tar}"
+            docker load < "${_tar}"
+        else
+            echo "[info] Pre-built image not found: ${_tar}"
+            echo "[info] Falling back to local build..."
+            INSTALL_IS_BUILD="0"
+        fi
+    fi
+
+    if [[ "${INSTALL_IS_BUILD}" == "0" ]]; then
+        # Local build: use docker orchestration scripts to compile and build image
+        if [[ ! -f "${BUILD_DIR}/Dockerfile" ]]; then
+            echo "Error: Build-repo Dockerfile not found at ${BUILD_DIR}/Dockerfile"
+            echo "lnmp-utils-build must contain the build-repo source (Dockerfile + linux/)."
+            echo "Tip: ln -s ../../lnmp-utils-build ${CURRENT_DIR}/lnmp-utils-build"
+            exit 1
+        fi
+        if ! command -v docker &>/dev/null; then
+            echo "Error: docker not found. Please install Docker first."
+            exit 1
+        fi
+
+        echo "Building LNMP Docker image locally (this will take a while)..."
+        echo "  Distro: ${DOCKER_DISTRO}"
+
+        build_full_image "${DOCKER_DISTRO}" "${BUILD_DIR}" "${CURRENT_DIR}"
+    fi
+
+    # Deploy with docker compose
+    echo "Deploying LNMP via Docker (${DOCKER_DISTRO})..."
+    LNMP_COMPONENTS="${INSTALL_MODULES[*]:-lnmp} ${INSTALL_COMPONENTS[*]:-}"
+    DATA_DIR="${DATA_DIR:-${CURRENT_DIR}/docker/docker-fs}"
+    mkdir -p "${DATA_DIR}"/{log,conf,www,db,pkg,cache,script}
+
+    docker compose -f "${CURRENT_DIR}/docker/docker-compose.deploy.yml" up -d
+
+    echo ""
+    echo "LNMP Docker deployment started."
+    echo "  Check status: docker exec lnmp-utils systemctl status"
+    echo "  Access web:   http://localhost"
+    echo "  Stop:         docker compose -f ${CURRENT_DIR}/docker/docker-compose.deploy.yml down"
+    exit 0
+fi
+
+# Traditional install requires root
+if [ "$(id -u)" != "0" ]; then
+    echo "This script must be run as root for traditional install."
+    echo "For Docker deployment, use: $0 --docker"
+    exit 1
+fi
 
 check_dir "${INSTALL_DIR}"
 check_dir "${DATA_DIR}"
@@ -229,7 +335,7 @@ create_dir $SOURCE_DIR $SOURCE_COMPONENT_DIR $SOURCE_MODULE_DIR
 create_dir $DATA_BAK_DIR $DATA_WEB_DIR $DATA_DB_DIR $DATA_SCRIPT_DIR $DATA_CONF_DIR
 
 
-if [ ${#INSTALL_COMPONENTS} == 0 ] && [  ${#INSTALL_MODULES} == 0 ];then
+if [ ${#INSTALL_COMPONENTS[@]} == 0 ] && [  ${#INSTALL_MODULES[@]} == 0 ];then
 	INSTALL_MODULES[0]="lnmp"
 fi
 

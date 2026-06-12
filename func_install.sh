@@ -22,6 +22,7 @@ pkg_conf_get() {
 
 # Initialize/reset the component temp directory
 com_tmp_init() {
+	create_dir "${TMP_DIR}"
 	if [[ "${TMP_COMPONENT_DIR}" != "" ]]; then
 		if [ -e "${TMP_COMPONENT_DIR}" ]; then
 			rm -rf "${TMP_COMPONENT_DIR}"/*
@@ -180,6 +181,8 @@ com_install() {
 		echo "${_com_install_install_script}"
 
 		_com_install_tmp_script="${TMP_DIR}/install_${com}.sh"
+		create_dir "${TMP_DIR}"
+		create_dir "${TMP_COMPONENT_DIR}"
 		cp "${_com_install_install_script}" "${_com_install_tmp_script}"
 
 		if ! pkg-config --exists libsodium 2>/dev/null; then
@@ -192,7 +195,11 @@ com_install() {
 		# Run component install in a subshell to avoid bash 5.2 pop_var_context bug
 		# The component script reads COM_* globals but does not need to modify them
 		(source "${_com_install_tmp_script}")
+		_com_install_exit=$?
 		rm -f "${_com_install_tmp_script}"
+		if [ ${_com_install_exit} -ne 0 ]; then
+			error "Component ${com} installation failed (exit ${_com_install_exit})"
+		fi
 		sleep 2
 		echo "Component ${com} installation stopped."
 	done
@@ -285,6 +292,7 @@ require() {
 
 # Initialize/reset the module temp directory
 mod_tmp_init() {
+	create_dir "${TMP_DIR}"
 	if [[ "${TMP_MODULE_DIR}" != "" ]]; then
 		if [ -e "${TMP_MODULE_DIR}" ]; then
 			rm -rf "${TMP_MODULE_DIR}"/*

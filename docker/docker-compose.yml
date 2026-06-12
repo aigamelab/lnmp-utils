@@ -1,74 +1,35 @@
-# lnmp-utils multi-distro test — docker compose variant
+# lnmp-utils multi-distro CI test — docker compose variant
 #
-# Mount rules (see shared docs: 安全规范.md):
-#   - Source mounts are READ-ONLY (:ro) — install never writes to /opt/lnmp-utils*
-#   - Writable data mounts to /Volumes/data/docker-fs/<project>/ isolated from source
-#   - Temp data mounts to system /tmp/ only
-#
-# Setup data directories (first run only):
-#   mkdir -p /Volumes/data/docker-fs/lnmp-utils/{log,conf,www,db,pkg,cache,script}
-#   mkdir -p /tmp/aigm-test-pkg
+# Tests install.sh by building the full image for each distro.
+# install.sh runs at Docker build time — build success = test pass.
 #
 # Usage: docker compose up --abort-on-container-exit
-
-x-data-volumes: &data-volumes
-  - /Volumes/data/docker-fs/lnmp-utils/log:/data/log
-  - /Volumes/data/docker-fs/lnmp-utils/conf:/data/conf
-  - /Volumes/data/docker-fs/lnmp-utils/www:/data/www
-  - /Volumes/data/docker-fs/lnmp-utils/db:/data/db
-  - /Volumes/data/docker-fs/lnmp-utils/pkg:/data/pkg
-  - /Volumes/data/docker-fs/lnmp-utils/cache:/data/cache
-  - /Volumes/data/docker-fs/lnmp-utils/script:/data/script
 
 services:
   rockylinux:
     build:
       context: ..
       dockerfile: docker/Dockerfile.rockylinux
-    image: lnmp-test-rockylinux:latest
-    privileged: true
-    volumes:
-      - ..:/opt/lnmp-utils:ro
-      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
-      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
-      <<: *data-volumes
-    command: -b -c php mariadb openresty redis memcache
+      target: full
+    image: aigameism/lnmp-utils:rockylinux
 
   centos:
     build:
       context: ..
       dockerfile: docker/Dockerfile.centos
-    image: lnmp-test-centos:latest
-    privileged: true
-    volumes:
-      - ..:/opt/lnmp-utils:ro
-      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
-      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
-      <<: *data-volumes
-    command: -b -c php mariadb openresty redis memcache
+      target: full
+    image: aigameism/lnmp-utils:centos
 
   ubuntu:
     build:
       context: ..
       dockerfile: docker/Dockerfile.ubuntu
-    image: lnmp-test-ubuntu:latest
-    privileged: true
-    volumes:
-      - ..:/opt/lnmp-utils:ro
-      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
-      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
-      <<: *data-volumes
-    command: -b -c php mariadb openresty redis memcache
+      target: full
+    image: aigameism/lnmp-utils:ubuntu
 
   debian:
     build:
       context: ..
       dockerfile: docker/Dockerfile.debian
-    image: lnmp-test-debian:latest
-    privileged: true
-    volumes:
-      - ..:/opt/lnmp-utils:ro
-      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
-      - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
-      <<: *data-volumes
-    command: -b -c php mariadb openresty redis memcache
+      target: full
+    image: aigameism/lnmp-utils:debian

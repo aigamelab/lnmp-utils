@@ -122,6 +122,11 @@ show_help(){
 	echo "                     ./install.sh -c openresty -o fdfs proxy"
 	echo "-b|--build           Build folder for custom component development (use when github.com is inaccessible)."
 	echo "--no-clear           Do not clean up the installation folder."
+	echo "--docker[=distro]    Deploy via Docker instead of traditional install."
+	echo "                     distro: debian|ubuntu|centos|rockylinux (omit for interactive selection)"
+	echo "                     -b --docker=debian: load pre-built image from lnmp-utils-build/docker/"
+	echo "                     --docker=debian:      build image locally then deploy"
+	echo "                     See also: install-docker.sh for cross-platform Docker management."
 	exit
 }
 

@@ -8,3 +8,5 @@ build
 tmp/*
 pkg/*.claude
 CLAUDE.md
+lnmp-utils-build
+docker/docker-compose.volumes.yml

@@ -1,9 +1,9 @@
-# lnmp-utils deployment — docker compose
+# lnmp-utils deployment — single container systemd-managed LNMP stack
 #
-# Single-container systemd-managed LNMP stack.
 # Components are pre-compiled in the image; select which to run via LNMP_COMPONENTS.
 #
-# See docker/deploy/lnmp-docker for CLI convenience wrapper.
+# Data volumes are configurable via DATA_DIR (set in .env or environment).
+# Leave DATA_DIR empty to skip data volume mounts.
 
 services:
   lnmp:
@@ -18,15 +18,6 @@ services:
       - "${HOST_PORT_REDIS:-6379}:6379"
       - "${HOST_PORT_MEMCACHED:-11211}:11211"
       - "${HOST_PORT_MONGO:-27017}:27017"
-    volumes:
-      - ${DATA_DIR:-./docker-fs}/log:/data/log
-      - ${DATA_DIR:-./docker-fs}/conf:/data/conf
-      - ${DATA_DIR:-./docker-fs}/www:/data/www
-      - ${DATA_DIR:-./docker-fs}/db:/data/db
-      - ${DATA_DIR:-./docker-fs}/pkg:/data/pkg
-      - ${DATA_DIR:-./docker-fs}/cache:/data/cache
-      - ${DATA_DIR:-./docker-fs}/script:/data/script
-    mem_limit: ${MEMORY_LIMIT:-4g}
     restart: unless-stopped
     stop_signal: SIGRTMIN+3
     tmpfs:

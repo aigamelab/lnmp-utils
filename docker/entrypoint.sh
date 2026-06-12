@@ -11,7 +11,7 @@ echo "============================================"
 
 # Run install command passed as args
 cd /opt/lnmp-utils
-chmod +x install.sh
+chmod +x install.sh 2>/dev/null || true
 
 echo "[$(date '+%H:%M:%S')] Running: ./install.sh $*"
 ./install.sh "$@" 2>&1
