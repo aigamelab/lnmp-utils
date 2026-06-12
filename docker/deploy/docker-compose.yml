@@ -1,0 +1,34 @@
+# lnmp-utils deployment — docker compose
+#
+# Single-container systemd-managed LNMP stack.
+# Components are pre-compiled in the image; select which to run via LNMP_COMPONENTS.
+#
+# See docker/deploy/lnmp-docker for CLI convenience wrapper.
+
+services:
+  lnmp:
+    image: aigameism/lnmp-utils:${LNMP_DISTRO:-debian}
+    container_name: lnmp-utils
+    privileged: true
+    environment:
+      - LNMP_COMPONENTS=${LNMP_COMPONENTS:-lnmp}
+    ports:
+      - "${HOST_PORT_WWW:-80}:80"
+      - "${HOST_PORT_DB:-3306}:3306"
+      - "${HOST_PORT_REDIS:-6379}:6379"
+      - "${HOST_PORT_MEMCACHED:-11211}:11211"
+      - "${HOST_PORT_MONGO:-27017}:27017"
+    volumes:
+      - ${DATA_DIR:-./docker-fs}/log:/data/log
+      - ${DATA_DIR:-./docker-fs}/conf:/data/conf
+      - ${DATA_DIR:-./docker-fs}/www:/data/www
+      - ${DATA_DIR:-./docker-fs}/db:/data/db
+      - ${DATA_DIR:-./docker-fs}/pkg:/data/pkg
+      - ${DATA_DIR:-./docker-fs}/cache:/data/cache
+      - ${DATA_DIR:-./docker-fs}/script:/data/script
+    mem_limit: ${MEMORY_LIMIT:-4g}
+    restart: unless-stopped
+    stop_signal: SIGRTMIN+3
+    tmpfs:
+      - /run
+      - /tmp

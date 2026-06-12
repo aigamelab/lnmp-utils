@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# lnmp-docker — one-command LNMP deployment manager
+# Cross-platform: macOS, Linux, Windows (Git Bash / WSL2)
+#
+# Usage: ./lnmp-docker <command>
+#   pull      Pull/update the LNMP Docker image
+#   up        Start the LNMP stack
+#   down      Stop and remove the container
+#   restart   Restart all services
+#   status    Show running services
+#   logs      Tail container logs
+#   shell     Open bash inside the container
+#   help      Show this help
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
+ENV_FILE="${SCRIPT_DIR}/.env"
+PROJECT_NAME="lnmp-utils"
+
+# ---- Colors ----
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# ---- Helpers ----
+
+ensure_env() {
+    if [[ ! -f "${ENV_FILE}" ]]; then
+        cp "${SCRIPT_DIR}/.env.example" "${ENV_FILE}"
+        echo -e "${GREEN}[lnmp-docker]${NC} Created .env from .env.example — edit if needed"
+    fi
+}
+
+compose() {
+    docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --project-name "${PROJECT_NAME}" "$@"
+}
+
+# ---- Commands ----
+
+cmd_pull() {
+    local distro="${LNMP_DISTRO:-debian}"
+    if [[ -f "${ENV_FILE}" ]]; then
+        distro=$(grep '^LNMP_DISTRO=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2 || echo "debian")
+    fi
+    distro="${distro:-debian}"
+    echo -e "${GREEN}[lnmp-docker]${NC} Pulling aigameism/lnmp-utils:${distro} ..."
+    docker pull "aigameism/lnmp-utils:${distro}"
+    echo -e "${GREEN}[lnmp-docker]${NC} Done."
+}
+
+cmd_up() {
+    ensure_env
+    local data_dir
+    data_dir=$(grep '^DATA_DIR=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2 || echo "./docker-fs")
+    data_dir="${data_dir:-./docker-fs}"
+
+    echo -e "${GREEN}[lnmp-docker]${NC} Creating data directories at ${data_dir} ..."
+    mkdir -p "${data_dir}"/{log,conf,www,db,pkg,cache,script}
+
+    echo -e "${GREEN}[lnmp-docker]${NC} Starting LNMP stack..."
+    compose up -d "$@"
+
+    echo ""
+    echo -e "${GREEN}[lnmp-docker]${NC} LNMP is starting. Wait a few seconds, then:"
+    echo "  ./lnmp-docker status"
+    echo "  ./lnmp-docker logs  (tail logs)"
+}
+
+cmd_down() {
+    echo -e "${YELLOW}[lnmp-docker]${NC} Stopping LNMP stack..."
+    compose down "$@"
+    echo -e "${GREEN}[lnmp-docker]${NC} Stopped."
+}
+
+cmd_restart() {
+    echo -e "${YELLOW}[lnmp-docker]${NC} Restarting..."
+    compose restart "$@"
+    echo -e "${GREEN}[lnmp-docker]${NC} Restarted."
+}
+
+cmd_status() {
+    echo "=== Container ==="
+    compose ps 2>/dev/null || echo "  (not running)"
+
+    echo ""
+    echo "=== Services ==="
+    if docker exec lnmp-utils systemctl list-units --type=service --state=running 2>/dev/null \
+        | grep -qE 'openresty|mariadb|php-fpm|redis|memcached|mongod'; then
+        docker exec lnmp-utils systemctl list-units --type=service --state=running 2>/dev/null \
+            | grep -E 'openresty|mariadb|php-fpm|redis|memcached|mongod|UNIT' \
+            | awk '{print $1, $2, $3, $4}'
+    else
+        echo "  (no services running — container may still be starting)"
+    fi
+}
+
+cmd_logs() {
+    compose logs -f --tail="${1:-100}"
+}
+
+cmd_shell() {
+    echo -e "${GREEN}[lnmp-docker]${NC} Opening shell in container..."
+    docker exec -it lnmp-utils bash 2>/dev/null || docker exec -it lnmp-utils sh
+}
+
+cmd_help() {
+    cat <<'EOF'
+lnmp-docker — LNMP environment manager
+
+Usage: ./lnmp-docker <command>
+
+Commands:
+  pull      Pull/update the LNMP Docker image
+  up        Start the LNMP stack
+  down      Stop and remove the container
+  restart   Restart all services
+  status    Show running services
+  logs      Tail container logs (optional: line count, default 100)
+  shell     Open bash inside the container
+  help      Show this help
+
+Configuration (.env):
+  LNMP_COMPONENTS   Preset or list: lnmp|full|minimal|nosql|php,mariadb,openresty,...
+  LNMP_DISTRO       Base distro: rockylinux|debian|ubuntu|centos
+  DATA_DIR          Host path for persistent data (default: ./docker-fs)
+  HOST_PORT_WWW     HTTP port (default: 80)
+  HOST_PORT_DB      MariaDB port (default: 3306)
+
+Quick start:
+  ./lnmp-docker pull          # download the image (once)
+  ./lnmp-docker up            # start with defaults (lnmp stack)
+  ./lnmp-docker status        # verify services are running
+  curl http://localhost       # test the web server
+
+EOF
+}
+
+# ---- Main ----
+case "${1:-help}" in
+    pull)     cmd_pull;;
+    up)       shift; cmd_up "$@";;
+    down)     shift; cmd_down "$@";;
+    restart)  shift; cmd_restart "$@";;
+    status)   cmd_status;;
+    logs)     cmd_logs "${2:-100}";;
+    shell)    cmd_shell;;
+    help|*)   cmd_help;;
+esac

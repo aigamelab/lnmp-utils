@@ -1,4 +1,5 @@
 #!/bin/bash
+# CI test entrypoint — runs install.sh from the mounted source
 set -e
 
 echo "============================================"
