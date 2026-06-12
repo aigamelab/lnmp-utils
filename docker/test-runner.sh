@@ -4,6 +4,9 @@
 # Runs ./install.sh -b -c php mariadb openresty redis memcache
 # across Rockylinux 10, CentOS Stream 9, Ubuntu 24.04, Debian 12.
 #
+# SAFETY: Source mounts are READ-ONLY (:ro) — install never writes to /opt/lnmp-utils*.
+# Writable temp data uses system /tmp/ only. See shared/docs/Git规范.md.
+#
 # Usage:
 #   ./docker/test-runner.sh [distro]       # run one or all
 #   ./docker/test-runner.sh rockylinux     # single distro
@@ -15,6 +18,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 LOG_DIR="${PROJECT_DIR}/docker/logs"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# Auto-detect build project path (sibling directory)
+DEFAULT_BUILD_SRC="$(dirname "$PROJECT_DIR")/lnmp-utils-build"
+BUILD_SRC="${BUILD_SRC:-$DEFAULT_BUILD_SRC}"
 
 # Test configuration
 COMPONENTS="php mariadb openresty redis memcache"
@@ -28,6 +35,8 @@ declare -A DISTROS=(
 )
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "${LOG_DIR}/summary.log"; }
+
+# ---- Test runner ----
 
 run_test() {
     local name="$1"
@@ -54,12 +63,19 @@ run_test() {
         return 1
     fi
 
-    # Run install test
+    # Run install test — source mounts :ro, writable temp in /tmp/
     log "Running install on ${name}..."
     set +e
+    local mount_args=(
+        -v "${PROJECT_DIR}:/opt/lnmp-utils:ro"
+        -v /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
+    )
+    if [ -d "${BUILD_SRC}" ]; then
+        mount_args+=(-v "${BUILD_SRC}:/opt/lnmp-utils-build:ro")
+    fi
+
     docker run --rm --privileged \
-        -v "${PROJECT_DIR}:/opt/lnmp-utils" \
-        -v /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils \
+        "${mount_args[@]}" \
         "${test_image}" \
         ${INSTALL_ARGS} \
         > "${log_file}" 2>&1
@@ -92,8 +108,17 @@ run_test() {
     return $exit_code
 }
 
+# ---- Main ----
+
 main() {
-    local target="${1:-all}"
+    local target="all"
+    local distros=()
+
+    for arg in "$@"; do
+        case "$arg" in
+            all|rockylinux|centos|ubuntu|debian) target="$arg" ;;
+        esac
+    done
 
     echo "lnmp-utils multi-distro install test"
     echo "Date: $(date)"
@@ -104,14 +129,14 @@ main() {
     mkdir -p "${LOG_DIR}"
     :> "${LOG_DIR}/summary.log"
 
+    if [ "${target}" = "all" ]; then
+        distros=("rockylinux" "centos" "ubuntu" "debian")
+    else
+        distros=("${target}")
+    fi
+
     local results=()
     local all_pass=true
-
-    if [ "${target}" = "all" ]; then
-        local distros=("rockylinux" "centos" "ubuntu" "debian")
-    else
-        local distros=("${target}")
-    fi
 
     for d in "${distros[@]}"; do
         if run_test "$d"; then

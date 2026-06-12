@@ -1,3 +1,11 @@
+# lnmp-utils multi-distro test — docker compose variant
+#
+# Mount rules (see shared/docs/Git规范.md):
+#   - Source mounts are READ-ONLY (:ro) — install never writes to /opt/lnmp-utils*
+#   - Writable temp data mounts to system /tmp/ only
+#
+# Usage: docker compose up --abort-on-container-exit
+
 services:
   rockylinux:
     build:
@@ -6,7 +14,8 @@ services:
     image: lnmp-test-rockylinux:latest
     privileged: true
     volumes:
-      - ..:/opt/lnmp-utils
+      - ..:/opt/lnmp-utils:ro
+      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
     command: -b -c php mariadb openresty redis memcache
 
@@ -17,7 +26,8 @@ services:
     image: lnmp-test-centos:latest
     privileged: true
     volumes:
-      - ..:/opt/lnmp-utils
+      - ..:/opt/lnmp-utils:ro
+      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
     command: -b -c php mariadb openresty redis memcache
 
@@ -28,7 +38,8 @@ services:
     image: lnmp-test-ubuntu:latest
     privileged: true
     volumes:
-      - ..:/opt/lnmp-utils
+      - ..:/opt/lnmp-utils:ro
+      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
     command: -b -c php mariadb openresty redis memcache
 
@@ -39,6 +50,7 @@ services:
     image: lnmp-test-debian:latest
     privileged: true
     volumes:
-      - ..:/opt/lnmp-utils
+      - ..:/opt/lnmp-utils:ro
+      - ../../lnmp-utils-build:/opt/lnmp-utils-build:ro
       - /tmp/aigm-test-pkg:/tmp/aigm-lnmp-utils
     command: -b -c php mariadb openresty redis memcache
