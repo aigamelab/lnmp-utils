@@ -9,7 +9,7 @@
 #
 #   build_full_image <distro> <build_repo_dir> <project_dir>
 #     Builds the full-stack aigameism/lnmp-utils:<distro> image.
-#     Prerequisite image aigm/lnmp-utils-build is built automatically if missing.
+#     Uses --build-context to inject local build-repo directly (no registry lookup).
 
 find_build_repo() {
     local project_dir="${1:-${PROJECT_DIR:-.}}"
@@ -25,19 +25,9 @@ build_full_image() {
     local build_repo_dir="$2"
     local project_dir="$3"
 
-    # Stage 0: build-repo image (FROM scratch, provides source tarballs)
-    if ! docker image inspect aigm/lnmp-utils-build &>/dev/null; then
-        echo "[0/2] Building aigm/lnmp-utils-build..."
-        DOCKER_BUILDKIT=1 docker build \
-            -t aigm/lnmp-utils-build \
-            "${build_repo_dir}"
-    else
-        echo "[0/2] aigm/lnmp-utils-build already exists, skipping."
-    fi
-
-    # Stage 1: full-stack image (compiles all components, this IS the CI test)
-    echo "[1/2] Building aigameism/lnmp-utils:${distro}..."
+    echo "Building aigameism/lnmp-utils:${distro}..."
     DOCKER_BUILDKIT=1 docker build \
+        --build-context "build-repo=${build_repo_dir}" \
         -t "aigameism/lnmp-utils:${distro}" \
         -f "${project_dir}/docker/Dockerfile.${distro}" \
         "${project_dir}"

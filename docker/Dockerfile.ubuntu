@@ -25,7 +25,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/sbin/init"]
 
 FROM build-env AS full
-RUN --mount=type=bind,from=aigm/lnmp-utils-build,source=/linux,target=/opt/lnmp-utils-build/linux,readonly \
+RUN --mount=type=bind,from=build-repo,source=linux,target=/opt/lnmp-utils-build/linux,readonly \
     cd /opt/lnmp-utils \
     && ./install.sh --no-clear -b -c mariadb php openresty redis \
     && rm -rf /tmp/* /var/cache/apt/* \
