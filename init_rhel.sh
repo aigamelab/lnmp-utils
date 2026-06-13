@@ -24,7 +24,7 @@ os_mirror_setup() {
         [ -f "$f" ] || continue
         if grep -q '^mirrorlist=' "$f" 2>/dev/null; then
             sed -i 's|^mirrorlist=|#mirrorlist=|g' "$f"
-            sed -i "s|^#baseurl=http://dl.rockylinux.org|baseurl=${mirror_url}/rockylinux http://dl.rockylinux.org|g" "$f"
+            sed -i "s|^#baseurl=http://dl.rockylinux.org/\$contentdir/\(.*\)|baseurl=${mirror_url}/rockylinux/\\1 http://dl.rockylinux.org/\$contentdir/\\1|g" "$f"
         fi
     done
 }
