@@ -143,6 +143,23 @@ opt_init(){
 	set -- $tmpopt
 }
 
+# Public API: open firewall port for public access
+# Each component calls this for its own ports — one component, one port.
+open_port() {
+    local port="$1"
+    [ -z "$port" ] && return
+    # Debian/Ubuntu
+    if command -v iptables &>/dev/null; then
+        iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || \
+            iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
+    fi
+    # RHEL/Rocky
+    if command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld 2>/dev/null; then
+        firewall-cmd --permanent --add-port=${port}/tcp 2>/dev/null || true
+        firewall-cmd --reload 2>/dev/null || true
+    fi
+}
+
 # Public API: kill the process listening on a given port
 killport() {
 	if [ -z "${1}" ]; then
@@ -186,7 +203,7 @@ os_init() {
 	if [ ! -f /etc/ld.so.conf.d/lnmp-utils.conf ]; then
 		rm -f /etc/localtime
 		cp -f /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-		pkg_install chrony libtool
+		pkg_install chrony
 		systemctl enable --now chronyd 2>/dev/null || true
 		chronyd -q 'server cn.pool.ntp.org iburst' 2>/dev/null || true
 		hwclock --systohc 2>/dev/null || true
@@ -263,10 +280,10 @@ EOF
 
 	user_add www www
 	# Essential build tools (compile from source)
-	pkg_install make autoconf automake gcc cmake pkg-config
+	pkg_install make gcc pkg-config
 
 	# Download, archive and patch utilities
-	pkg_install wget curl unzip zip patch pigz
+	pkg_install wget curl unzip zip pigz
 
 	if [ ! -f /etc/profile.d/lnmp-utils.sh ]; then
 		cat > /etc/profile.d/lnmp-utils.sh <<'EOF'

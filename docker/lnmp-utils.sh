@@ -16,7 +16,7 @@ echo "OS: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 |
 
 # ---- Preset resolution ----
 declare -A PRESETS=(
-    ["lnmp"]="openresty mariadb php"
+    ["lnmp"]="openresty mariadb php redis"
     ["full"]="openresty mariadb php redis memcached mongodb node fastdfs"
     ["minimal"]="openresty php"
     ["nosql"]="redis memcached mongodb"

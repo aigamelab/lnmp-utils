@@ -5,8 +5,9 @@
 # Stage 2 (full):       compile components at build time, ship as deployment image.
 
 FROM rockylinux/rockylinux:8 AS build-env
-RUN sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/Rocky-*.repo \
-    && sed -i 's|#baseurl=http://dl.rockylinux.org|baseurl=https://mirrors.aliyun.com/rockylinux|g' /etc/yum.repos.d/Rocky-*.repo \
+WORKDIR /opt/lnmp-utils
+COPY init_rhel.sh ./
+RUN . ./init_rhel.sh && os_mirror_setup \
     && dnf install -y systemd \
     && dnf clean all \
     && rm -f /lib/systemd/system/multi-user.target.wants/* \
@@ -15,9 +16,7 @@ RUN sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/Rocky-*.repo \
     && rm -f /lib/systemd/system/sockets.target.wants/*udev* \
     && rm -f /lib/systemd/system/sockets.target.wants/*initctl* \
     && systemctl set-default multi-user.target
-
-WORKDIR /opt/lnmp-utils
-COPY install.sh func_init.sh func_install.sh init_rhel.sh init_debian.sh ./
+COPY install.sh func_init.sh func_install.sh init_debian.sh ./
 COPY install ./
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh install.sh

@@ -3,6 +3,45 @@
 OS_VERSION_MIN=8
 OS_VERSION_MAX=10
 
+# Add aliyun mirror as primary dnf/yum source, keeping official source as fallback.
+os_mirror_setup() {
+    local mirror_url="https://mirrors.aliyun.com"
+
+    # CentOS Stream / RHEL: comment out metalink, replace baseurl with aliyun + official
+    # Works on the existing .repo files in place — no template overwrite.
+    for f in /etc/yum.repos.d/*.repo; do
+        [ -f "$f" ] || continue
+        if grep -q '^metalink=' "$f" 2>/dev/null; then
+            sed -i \
+                -e 's|^metalink=|#metalink=|g' \
+                -e "s|^#baseurl=https\?://mirror.stream.centos.org|baseurl=${mirror_url}/centos-stream https://mirror.stream.centos.org|g" \
+                "$f"
+        fi
+    done
+
+    # Rocky Linux: comment out mirrorlist, add aliyun as primary baseurl with official as fallback
+    for f in /etc/yum.repos.d/*.repo; do
+        [ -f "$f" ] || continue
+        if grep -q '^mirrorlist=' "$f" 2>/dev/null; then
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' "$f"
+            sed -i "s|^#baseurl=http://dl.rockylinux.org|baseurl=${mirror_url}/rockylinux http://dl.rockylinux.org|g" "$f"
+        fi
+    done
+}
+
+# Change SSH port to 10022
+os_ssh_port_setup() {
+    if grep -q '^Port 10022' /etc/ssh/sshd_config 2>/dev/null; then
+        return
+    fi
+    sed -i 's/^#Port 22/Port 10022/' /etc/ssh/sshd_config 2>/dev/null || true
+    if ! grep -q '^Port 10022' /etc/ssh/sshd_config 2>/dev/null; then
+        echo 'Port 10022' >> /etc/ssh/sshd_config
+    fi
+    open_port 10022
+    systemctl restart sshd 2>/dev/null || true
+}
+
 # Verify the current system is supported for installation
 # Exits the script if OS or version is out of range
 os_install_check() {
@@ -27,43 +66,8 @@ os_install_check() {
 		fi
 	fi
 
-	# CentOS Stream uses metalink (mirrors.centos.org/metalink) which returns
-	# unreliable third-party mirrors — especially for aarch64 and new releases.
-	# Timeouts and checksum mismatches are common. Replace with a static baseurl
-	# pointing directly to the official mirror, bypassing the metalink redirect.
-	if [ -f /etc/yum.repos.d/centos.repo ] && grep -q '^metalink=' /etc/yum.repos.d/centos.repo 2>/dev/null; then
-		cat > /etc/yum.repos.d/centos.repo <<'REPOEOF'
-[baseos]
-name=CentOS Stream $releasever - BaseOS
-baseurl=https://mirror.stream.centos.org/$releasever-stream/BaseOS/$basearch/os/
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial-SHA256
-gpgcheck=1
-repo_gpgcheck=0
-metadata_expire=6h
-countme=1
-enabled=1
-
-[appstream]
-name=CentOS Stream $releasever - AppStream
-baseurl=https://mirror.stream.centos.org/$releasever-stream/AppStream/$basearch/os/
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial-SHA256
-gpgcheck=1
-repo_gpgcheck=0
-metadata_expire=6h
-countme=1
-enabled=1
-
-[crb]
-name=CentOS Stream $releasever - CRB
-baseurl=https://mirror.stream.centos.org/$releasever-stream/CRB/$basearch/os/
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial-SHA256
-gpgcheck=1
-repo_gpgcheck=0
-metadata_expire=6h
-countme=1
-enabled=0
-REPOEOF
-	fi
+	# Add aliyun mirror as primary, keep official source as fallback
+	os_mirror_setup
 
 	# Enable PowerTools (RHEL 8) / CRB (RHEL 9+) / devel (Rocky 10+)
 	# for build dependencies. Uses sed directly on repo files to avoid
@@ -132,5 +136,5 @@ os_install_init(){
 		sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
 	fi
 
-	pkg_install ncurses-devel gcc-c++ kernel-devel
+	os_ssh_port_setup
 }

@@ -185,13 +185,6 @@ com_install() {
 		create_dir "${TMP_COMPONENT_DIR}"
 		cp "${_com_install_install_script}" "${_com_install_tmp_script}"
 
-		if ! pkg-config --exists libsodium 2>/dev/null; then
-			sed -i '/--with-sodium[[:space:]]*\\/d' "${_com_install_tmp_script}" 2>/dev/null || true
-		fi
-		if [ "${OS_SCRIPT_NAME}" = "debian" ]; then
-			sed -i 's/if \[ ! -f \/usr\/local\/bin\/iconv \]/if false/' "${_com_install_tmp_script}" 2>/dev/null || true
-			sed -i 's/export LDFLAGS="$LDFLAGS -liconv"//g' "${_com_install_tmp_script}" 2>/dev/null || true
-		fi
 		# Run component install in a subshell to avoid bash 5.2 pop_var_context bug
 		# The component script reads COM_* globals but does not need to modify them
 		(source "${_com_install_tmp_script}")
