@@ -5,7 +5,9 @@
 # Stage 2 (full):       compile components at build time, ship as deployment image.
 
 FROM rockylinux/rockylinux:10 AS build-env
-RUN dnf install -y systemd \
+RUN sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/Rocky-*.repo \
+    && sed -i 's|#baseurl=http://dl.rockylinux.org|baseurl=https://mirrors.aliyun.com/rockylinux|g' /etc/yum.repos.d/Rocky-*.repo \
+    && dnf install -y systemd \
     && dnf clean all \
     && rm -f /lib/systemd/system/multi-user.target.wants/* \
     && rm -f /etc/systemd/system/*.wants/* \

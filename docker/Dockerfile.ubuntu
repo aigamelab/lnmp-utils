@@ -6,7 +6,8 @@
 
 FROM ubuntu:24.04 AS build-env
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y ca-certificates systemd systemd-sysv dbus \
+RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update && apt-get install -y ca-certificates systemd systemd-sysv dbus \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /lib/systemd/system/multi-user.target.wants/* \
     && rm -f /etc/systemd/system/*.wants/* \

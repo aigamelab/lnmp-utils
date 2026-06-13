@@ -10,7 +10,8 @@
 
 FROM debian:12 AS build-env
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y ca-certificates systemd systemd-sysv dbus \
+RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y ca-certificates systemd systemd-sysv dbus \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /lib/systemd/system/multi-user.target.wants/* \
     && rm -f /etc/systemd/system/*.wants/* \
