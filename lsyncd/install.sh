@@ -33,6 +33,7 @@ cat > $_RSYNC_EXCLUDE_FILE <<EOT
 .settings
 EOT
 
+# SECURITY: Default rsync password '123456' — CHANGE for production use.
 echo "rsync:123456" >$_RSYNC_PASSWD_FILE
 echo "123456" >$_RSYNC_CLIENT_PASSWD_FILE
 chmod 600 $_RSYNC_PASSWD_FILE

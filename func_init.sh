@@ -108,7 +108,7 @@ show_help(){
 	echo "nosql:   redis memcached"
 	echo "dfs:     fastdfs"
 	echo "node.js: node"
-	echo "From: https://github.com/tinyphporg/lnmp-utils"
+	echo "From: https://github.com/aigamelab/lnmp-utils"
     echo "---------------------"
     echo "module list:"
     echo "lnmp"
@@ -220,10 +220,10 @@ EOT
 	if [ ! -d /etc/sysctl.d ]; then
 		sysctl_file="/etc/sysctl.conf"
 	fi
-	if ! grep -q "^#patch by tinyphporg/lnmp-utils$" "$sysctl_file"; then
+	if ! grep -q "^#patch by aigamelab/lnmp-utils$" "$sysctl_file"; then
 
 		cat >> "$sysctl_file" <<EOF
-#patch by tinyphporg/lnmp-utils
+#patch by aigamelab/lnmp-utils
 net.ipv4.ip_forward = 1
 net.ipv4.conf.default.rp_filter = 1
 net.ipv4.conf.default.accept_source_route = 0
@@ -266,9 +266,9 @@ EOF
 	if [ ! -d /etc/security/limits.d ]; then
 		limits_file="/etc/security/limits.conf"
 	fi
-	if ! grep -q "^#patch by tinyphporg/lnmp-utils$" "$limits_file"; then
+	if ! grep -q "^#patch by aigamelab/lnmp-utils$" "$limits_file"; then
 		cat >> "$limits_file" <<EOF
-#patch by tinyphporg/lnmp-utils
+#patch by aigamelab/lnmp-utils
 *               soft     nproc         65536
 *               hard     nproc         65536
 

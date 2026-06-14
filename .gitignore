@@ -10,3 +10,5 @@ pkg/*.claude
 CLAUDE.md
 lnmp-utils-build
 docker/docker-compose.volumes.yml
+docker/logs/
+docker/docker-fs/

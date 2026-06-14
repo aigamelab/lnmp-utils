@@ -1,6 +1,6 @@
 #!/bin/bash
 # lnmp-utils — Linux NMP environment installer
-# https://github.com/tinyphporg/lnmp-utils
+# https://github.com/aigamelab/lnmp-utils
 
 PATH="/usr/local/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/sbin:${HOME}/bin"
 export PATH
@@ -210,10 +210,10 @@ CPU_NUM=$(grep -c -e "model name" -e "processor" /proc/cpuinfo)
 
 # Auto-select source mirror based on network speed (GitHub vs Gitee)
 # Set MIRROR=github or MIRROR=gitee to force a specific mirror.
-GIT_URL_GITHUB="https://github.com/aigameism/lnmp-utils-packages.git"
-SOURCE_URL_GITHUB="https://raw.githubusercontent.com/aigameism/lnmp-utils-packages/master/"
-GIT_URL_GITEE="https://gitee.com/aigameism/lnmp-utils-packages.git"
-SOURCE_URL_GITEE="https://raw.giteeusercontent.com/aigameism/lnmp-utils-packages/raw/master/"
+GIT_URL_GITHUB="https://github.com/aigamelab/lnmp-utils-packages.git"
+SOURCE_URL_GITHUB="https://raw.githubusercontent.com/aigamelab/lnmp-utils-packages/master/"
+GIT_URL_GITEE="https://gitee.com/aigamelab/lnmp-utils-packages.git"
+SOURCE_URL_GITEE="https://raw.giteeusercontent.com/aigamelab/lnmp-utils-packages/raw/master/"
 
 if [ "${MIRROR:-}" = "github" ]; then
     GIT_URL="${GIT_URL_GITHUB}"
